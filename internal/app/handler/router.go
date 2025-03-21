@@ -12,8 +12,9 @@ import (
 func SetupRouter(db *sql.DB, redisClient *redis.Client, kafkaProducer *kafka.Writer) *gin.Engine {
 	router := gin.Default()
 
-	// Đăng ký route cho việc cập nhật inventory
-	router.PUT("/update-inventory", UpdateInventoryHandler(db, redisClient, kafkaProducer))
+	handler := NewHandler(db, redisClient, kafkaProducer)
+	// Đăng ký route cho việc cập nhật inventory với method của struct Handler
+	router.PUT("/update-inventory", handler.UpdateInventoryHandler)
 
 	// Các route khác có thể đăng ký thêm tại đây...
 
