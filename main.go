@@ -74,7 +74,7 @@ func main() {
 	go invConsumer.Start(ctx)
 	go invConsumer.StartDLQConsumer(ctx, dlqReader)
 
-	// 10. Khởi chạy gRPC server trên cổng cấu hình (ví dụ: ":50051").
+	// 10. Khởi chạy gRPC server trên cổng cấu hình (ví dụ: ":3").
 	grpcStop := make(chan struct{})
 	go grpcServer.StartGRPCServer(dbConn, cfg.GRPCPort, grpcStop)
 

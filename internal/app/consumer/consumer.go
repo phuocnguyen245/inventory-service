@@ -58,11 +58,11 @@ func (c *InventoryConsumer) pushToDLQ(ctx context.Context, event model.Inventory
 		return
 	}
 	// Sử dụng event.ItemID làm key (có thể thay đổi nếu cần)
-	err = kafkaUtils.WriteMessageWrapper(ctx, c.dlqWriter, []byte(event.ItemID), eventBytes)
+	err = kafkaUtils.WriteMessageWrapper(ctx, c.dlqWriter, []byte(event.Id), eventBytes)
 	if err != nil {
 		log.Printf("Lỗi gửi event vào DLQ: %v", err)
 	} else {
-		log.Printf("Event được đưa vào DLQ: itemID %s", event.ItemID)
+		log.Printf("Event được đưa vào DLQ: itemID %s", event.Id)
 	}
 }
 
@@ -95,7 +95,7 @@ readLoop:
 		}
 
 		// Sử dụng hàm getWorkerIndex để tính chỉ số worker từ event.ItemID (kiểu string)
-		workerIndex := getWorkerIndex(event.ItemID, c.workerCount)
+		workerIndex := getWorkerIndex(event.Id, c.workerCount)
 
 		select {
 		case c.workerQueues[workerIndex] <- event:
@@ -116,9 +116,9 @@ readLoop:
 func (c *InventoryConsumer) worker(ctx context.Context, eventChan <-chan model.InventoryEvent, workerID int) {
 	for event := range eventChan {
 		if err := c.processEvent(ctx, event); err != nil {
-			log.Printf("Worker %d: lỗi xử lý event cho item %s: %v", workerID, event.ItemID, err)
+			log.Printf("Worker %d: lỗi xử lý event cho item %s: %v", workerID, event.Id, err)
 		} else {
-			log.Printf("Worker %d: xử lý event %s cho item %s thành công", workerID, event.Type, event.ItemID)
+			log.Printf("Worker %d: xử lý event %s cho item %s thành công", workerID, event.Type, event.Id)
 		}
 	}
 }
@@ -134,7 +134,7 @@ func (c *InventoryConsumer) processEvent(ctx context.Context, event model.Invent
 			if err == nil {
 				return nil
 			}
-			log.Printf("Lỗi processCreate attempt %d cho item %s: %v", i+1, event.ItemID, err)
+			log.Printf("Lỗi processCreate attempt %d cho item %s: %v", i+1, event.Id, err)
 			time.Sleep(1 * time.Second)
 		}
 	case model.EventTypeUpdate:
@@ -143,7 +143,7 @@ func (c *InventoryConsumer) processEvent(ctx context.Context, event model.Invent
 			if err == nil {
 				return nil
 			}
-			log.Printf("Lỗi processUpdate attempt %d cho item %s: %v", i+1, event.ItemID, err)
+			log.Printf("Lỗi processUpdate attempt %d cho item %s: %v", i+1, event.Id, err)
 			time.Sleep(1 * time.Second)
 		}
 	case model.EventTypeDelete:
@@ -152,7 +152,7 @@ func (c *InventoryConsumer) processEvent(ctx context.Context, event model.Invent
 			if err == nil {
 				return nil
 			}
-			log.Printf("Lỗi processDelete attempt %d cho item %s: %v", i+1, event.ItemID, err)
+			log.Printf("Lỗi processDelete attempt %d cho item %s: %v", i+1, event.Id, err)
 			time.Sleep(1 * time.Second)
 		}
 	default:
@@ -160,31 +160,31 @@ func (c *InventoryConsumer) processEvent(ctx context.Context, event model.Invent
 	}
 	// Nếu sau 3 lần vẫn thất bại, đưa event vào DLQ.
 	c.pushToDLQ(ctx, event)
-	return fmt.Errorf("xử lý event %s cho item %s thất bại sau %d lần: %v", event.Type, event.ItemID, attempts, err)
+	return fmt.Errorf("xử lý event %s cho item %s thất bại sau %d lần: %v", event.Type, event.Id, attempts, err)
 }
 
 func (c *InventoryConsumer) attemptProcessCreate(ctx context.Context, event model.InventoryEvent) error {
-	_, err := c.db.ExecContext(ctx, "INSERT INTO inventory (id, quantity) VALUES ($1, $2)", event.ItemID, event.Quantity)
+	_, err := c.db.ExecContext(ctx, "INSERT INTO inventory (id, quantity) VALUES ($1, $2)", event.Id, event.Quantity)
 	if err != nil {
 		return fmt.Errorf("lỗi insert database: %v", err)
 	}
-	cacheKey := fmt.Sprintf("inventory:%s", event.ItemID)
+	cacheKey := fmt.Sprintf("inventory:%s", event.Id)
 	if err := redisUtils.InvalidateCache(ctx, c.redisClient, cacheKey); err != nil {
-		log.Printf("Lỗi xoá cache cho item %s: %v", event.ItemID, err)
+		log.Printf("Lỗi xoá cache cho item %s: %v", event.Id, err)
 	}
 	return nil
 }
 
 func (c *InventoryConsumer) attemptProcessUpdate(ctx context.Context, event model.InventoryEvent) error {
-	lockKey := fmt.Sprintf("lock:inventory:%s", event.ItemID)
+	lockKey := fmt.Sprintf("lock:inventory:%s", event.Id)
 	lockExpiration := 10 * time.Second
 
 	locked, err := redisUtils.AcquireLock(ctx, c.redisClient, lockKey, lockExpiration)
 	if err != nil || !locked {
 		if err != nil {
-			log.Printf("Lỗi đặt khóa cho item %s: %v", event.ItemID, err)
+			log.Printf("Lỗi đặt khóa cho item %s: %v", event.Id, err)
 		}
-		return fmt.Errorf("không thể lấy lock cho item %s", event.ItemID)
+		return fmt.Errorf("không thể lấy lock cho item %s", event.Id)
 	}
 	defer func() {
 		if err := redisUtils.ReleaseLock(ctx, c.redisClient, lockKey); err != nil {
@@ -192,29 +192,29 @@ func (c *InventoryConsumer) attemptProcessUpdate(ctx context.Context, event mode
 		}
 	}()
 
-	_, err = c.db.ExecContext(ctx, "UPDATE inventory SET quantity = quantity + $1 WHERE id = $2", event.Quantity, event.ItemID)
+	_, err = c.db.ExecContext(ctx, "UPDATE inventory SET quantity = quantity + $1 WHERE id = $2", event.Quantity, event.Id)
 	if err != nil {
 		return fmt.Errorf("lỗi cập nhật database: %v", err)
 	}
 
-	cacheKey := fmt.Sprintf("inventory:%s", event.ItemID)
+	cacheKey := fmt.Sprintf("inventory:%s", event.Id)
 	if err := redisUtils.InvalidateCache(ctx, c.redisClient, cacheKey); err != nil {
-		log.Printf("Lỗi xoá cache cho item %s: %v", event.ItemID, err)
+		log.Printf("Lỗi xoá cache cho item %s: %v", event.Id, err)
 	}
 
 	return nil
 }
 
 func (c *InventoryConsumer) attemptProcessDelete(ctx context.Context, event model.InventoryEvent) error {
-	lockKey := fmt.Sprintf("lock:inventory:%s", event.ItemID)
+	lockKey := fmt.Sprintf("lock:inventory:%s", event.Id)
 	lockExpiration := 10 * time.Second
 
 	locked, err := redisUtils.AcquireLock(ctx, c.redisClient, lockKey, lockExpiration)
 	if err != nil || !locked {
 		if err != nil {
-			log.Printf("Lỗi đặt khóa cho item %s: %v", event.ItemID, err)
+			log.Printf("Lỗi đặt khóa cho item %s: %v", event.Id, err)
 		}
-		return fmt.Errorf("không thể lấy lock cho item %s", event.ItemID)
+		return fmt.Errorf("không thể lấy lock cho item %s", event.Id)
 	}
 	defer func() {
 		if err := redisUtils.ReleaseLock(ctx, c.redisClient, lockKey); err != nil {
@@ -222,14 +222,14 @@ func (c *InventoryConsumer) attemptProcessDelete(ctx context.Context, event mode
 		}
 	}()
 
-	_, err = c.db.ExecContext(ctx, "DELETE FROM inventory WHERE id = $1", event.ItemID)
+	_, err = c.db.ExecContext(ctx, "DELETE FROM inventory WHERE id = $1", event.Id)
 	if err != nil {
 		return fmt.Errorf("lỗi xóa database: %v", err)
 	}
 
-	cacheKey := fmt.Sprintf("inventory:%s", event.ItemID)
+	cacheKey := fmt.Sprintf("inventory:%s", event.Id)
 	if err := redisUtils.InvalidateCache(ctx, c.redisClient, cacheKey); err != nil {
-		log.Printf("Lỗi xoá cache cho item %s: %v", event.ItemID, err)
+		log.Printf("Lỗi xoá cache cho item %s: %v", event.Id, err)
 	}
 
 	return nil
@@ -258,13 +258,13 @@ func (c *InventoryConsumer) StartDLQConsumer(ctx context.Context, dlqReader *kaf
 			continue
 		}
 
-		log.Printf("Đang cố gắng reprocess event từ DLQ cho item %s", event.ItemID)
+		log.Printf("Đang cố gắng reprocess event từ DLQ cho item %s", event.Id)
 		// Cố gắng reprocess event từ DLQ.
 		if err := c.processEvent(ctx, event); err != nil {
-			log.Printf("Reprocess DLQ event thất bại cho item %s: %v", event.ItemID, err)
+			log.Printf("Reprocess DLQ event thất bại cho item %s: %v", event.Id, err)
 			// Nếu reprocess không thành công, bạn có thể lưu trữ event này vào database hoặc hệ thống giám sát để xử lý sau.
 		} else {
-			log.Printf("Reprocess DLQ event thành công cho item %s", event.ItemID)
+			log.Printf("Reprocess DLQ event thành công cho item %s", event.Id)
 		}
 	}
 }

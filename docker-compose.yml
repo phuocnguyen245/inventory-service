@@ -30,6 +30,8 @@ services:
     restart: always
     environment:
       - POSTGRES_PASSWORD=root
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=inventorydb
     ports:
       - "5432:5432"
     volumes:
@@ -53,7 +55,7 @@ services:
     build: .
     ports:
       - "8080:8080" # HTTP server (REST API)
-      - "50051:50051" # gRPC server
+      - "50053:50053" # gRPC server
     environment:
       - POSTGRES_DSN=postgres://postgres:root@postgres:5432/inventorydb?sslmode=disable
       - REDIS_ADDR=redis:6379
@@ -61,11 +63,21 @@ services:
       - KAFKA_TOPIC=inventory-updates
       - DLQ_TOPIC=inventory-dlq
       - PORT=:8080
-      - GRPC_PORT=:50051
+      - GRPC_PORT=:50053
     depends_on:
       - postgres
       - redis
       - kafka
+    networks:
+      - inventory_network
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    ports:
+      - "8081:80" # ánh xạ cổng 80 trong container đến cổng 8081 trên máy host
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@example.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
     networks:
       - inventory_network
 

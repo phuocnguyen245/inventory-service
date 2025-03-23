@@ -2,17 +2,22 @@ syntax = "proto3";
 
 package inventory;
 
-option go_package = "/internal/grpc;inventorypb";
+option go_package = "internal/grpc/inventorypb;inventorypb";
 
-// Định nghĩa message cho tồn kho.
+service InventoryService {
+  rpc CreateInventory(CreateInventoryRequest) returns (CreateInventoryResponse);
+  rpc UpdateInventory(UpdateInventoryRequest) returns (UpdateInventoryResponse);
+  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
+}
+
 message InventoryItem {
-  string item_id = 1;
+  string id = 1;
   int32 quantity = 2;
 }
 
-// Request/Response cho tạo mới.
 message CreateInventoryRequest {
-  InventoryItem item = 1;
+  string id = 1;
+  int32 quantity = 2;
 }
 
 message CreateInventoryResponse {
@@ -20,9 +25,8 @@ message CreateInventoryResponse {
   string message = 2;
 }
 
-// Request/Response cho cập nhật tồn kho.
 message UpdateInventoryRequest {
-  string item_id = 1;
+  string id = 1;
   int32 quantity_change = 2;
 }
 
@@ -31,17 +35,10 @@ message UpdateInventoryResponse {
   string message = 2;
 }
 
-// Request/Response cho truy vấn tồn kho.
 message GetInventoryRequest {
-  string item_id = 1;
+  string id = 1;
 }
 
 message GetInventoryResponse {
   InventoryItem item = 1;
-}
-
-service InventoryService {
-  rpc CreateInventory(CreateInventoryRequest) returns (CreateInventoryResponse);
-  rpc UpdateInventory(UpdateInventoryRequest) returns (UpdateInventoryResponse);
-  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
 }

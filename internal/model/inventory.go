@@ -1,7 +1,7 @@
 package model
 
 type InventoryItem struct {
-	ID       int
+	ID       string
 	Name     string
 	Quantity int
 }

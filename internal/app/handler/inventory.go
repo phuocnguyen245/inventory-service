@@ -29,14 +29,9 @@ func NewHandler(db *sql.DB, redisClient *redis.Client, kafkaProducer *kafka.Writ
 
 func (h *Handler) UpdateInventoryHandler(c *gin.Context) {
 	ctx := c.Request.Context() // dùng context từ request
-	itemIDStr := c.Query("item_id")
+	idStr := c.Query("id")
 	changeStr := c.Query("change")
 
-	itemID, err := strconv.Atoi(itemIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "item_id không hợp lệ"})
-		return
-	}
 	change, err := strconv.Atoi(changeStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "change không hợp lệ"})
@@ -50,7 +45,7 @@ func (h *Handler) UpdateInventoryHandler(c *gin.Context) {
 		return
 	}
 	// Cập nhật PostgreSQL trong transaction
-	_, err = tx.ExecContext(ctx, "UPDATE inventory SET quantity = quantity + $1 WHERE id = $2", change, itemID)
+	_, err = tx.ExecContext(ctx, "UPDATE inventory SET quantity = quantity + $1 WHERE id = $2", change, idStr)
 	if err != nil {
 		tx.Rollback()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Lỗi cập nhật database"})
@@ -64,7 +59,7 @@ func (h *Handler) UpdateInventoryHandler(c *gin.Context) {
 	}
 
 	// Invalidate cache Redis
-	redisKey := "inventory:" + itemIDStr
+	redisKey := "inventory:" + idStr
 	if err := h.redisClient.Del(ctx, redisKey).Err(); err != nil {
 		// Log lỗi, không nhất thiết trả về cho client
 		// log.Printf("Lỗi xóa key Redis %s: %v", redisKey, err)
@@ -72,7 +67,7 @@ func (h *Handler) UpdateInventoryHandler(c *gin.Context) {
 
 	// Gửi sự kiện cập nhật qua Kafka
 	event := model.InventoryUpdateEvent{
-		ItemID:   itemID,
+		Id:       idStr,
 		Change:   change,
 		DateTime: time.Now(),
 	}
@@ -82,7 +77,7 @@ func (h *Handler) UpdateInventoryHandler(c *gin.Context) {
 		return
 	}
 	err = h.kafkaProducer.WriteMessages(ctx, kafka.Message{
-		Key:   []byte(itemIDStr),
+		Key:   []byte(idStr),
 		Value: eventBytes,
 	})
 	if err != nil {
