@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    ports:
+      - "2181:2181"
+    networks:
+      - inventory_network
+
+  kafka:
+    image: bitnami/kafka:latest
+    environment:
+      - KAFKA_BROKER_ID=1
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    networks:
+      - inventory_network
+
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      - POSTGRES_PASSWORD=root
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - inventory_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - inventory_network
+
+  inventory-service:
+    build: .
+    ports:
+      - "8080:8080" # HTTP server (REST API)
+      - "50051:50051" # gRPC server
+    environment:
+      - POSTGRES_DSN=postgres://postgres:root@postgres:5432/inventorydb?sslmode=disable
+      - REDIS_ADDR=redis:6379
+      - KAFKA_BROKER=kafka:9092
+      - KAFKA_TOPIC=inventory-updates
+      - DLQ_TOPIC=inventory-dlq
+      - PORT=:8080
+      - GRPC_PORT=:50051
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    networks:
+      - inventory_network
+
+volumes:
+  pgdata:
+
+networks:
+  inventory_network:
+    driver: bridge

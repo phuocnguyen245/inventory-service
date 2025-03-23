@@ -1,30 +1,45 @@
-package config
+package configs
 
 import (
-	"io/ioutil"
+	"fmt"
+	"log"
+	"os"
 
-	"gopkg.in/yaml.v2"
+	"github.com/joho/godotenv"
 )
 
 // Config chứa các cấu hình của ứng dụng.
 type Config struct {
-	PostgresDSN string `yaml:"postgres_dsn"`
-	RedisAddr   string `yaml:"redis_addr"`
-	KafkaBroker string `yaml:"kafka_broker"`
-	KafkaTopic  string `yaml:"kafka_topic"`
-	DLQTopic    string `yaml:"dlq_topic"` // Thêm trường DLQTopic để xử lý DLQ.
-	Port        string `yaml:"port"`      // Ví dụ: ":8080"
+	PostgresDSN string
+	RedisAddr   string
+	KafkaBroker string
+	KafkaTopic  string
+	DLQTopic    string
+	Port        string
+	GRPCPort    string
 }
 
-// LoadConfig đọc file cấu hình YAML và trả về cấu hình.
-func LoadConfig(path string) (*Config, error) {
-	data, err := ioutil.ReadFile(path)
+func LoadConfig(path ...string) (*Config, error) {
+
+	if len(path) == 0 {
+		path = append(path, ".env")
+	}
+
+	fmt.Println("path: ", path, os.Getenv("POSTGRES_DSN"))
+
+	err := godotenv.Load(path[0])
+
 	if err != nil {
-		return nil, err
+		log.Fatal("Error loading .env file")
 	}
-	var cfg Config
-	if err = yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
+
+	return &Config{
+		PostgresDSN: os.Getenv("POSTGRES_DSN"),
+		RedisAddr:   os.Getenv("REDIS_ADDR"),
+		KafkaBroker: os.Getenv("KAFKA_BROKER"),
+		KafkaTopic:  os.Getenv("KAFKA_TOPIC"),
+		DLQTopic:    os.Getenv("DLQ_TOPIC"),
+		Port:        os.Getenv("PORT"),
+		GRPCPort:    os.Getenv("GRPC_PORT"),
+	}, nil
 }

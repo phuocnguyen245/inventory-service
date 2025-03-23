@@ -31,5 +31,6 @@ func InitKafkaReader(broker, topic string) *kafka.Reader {
 		MaxBytes: 10e6,                       // 10MB
 		MaxWait:  1 * time.Second,
 	})
+
 	return reader
 }
