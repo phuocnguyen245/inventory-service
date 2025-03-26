@@ -8,6 +8,7 @@ service InventoryService {
   rpc CreateInventory(CreateInventoryRequest) returns (CreateInventoryResponse);
   rpc UpdateInventory(UpdateInventoryRequest) returns (UpdateInventoryResponse);
   rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
+  rpc GetInventories(GetInventoriesRequest) returns (GetInventoriesResponse);
 }
 
 message InventoryItem {
@@ -38,7 +39,14 @@ message UpdateInventoryResponse {
 message GetInventoryRequest {
   string id = 1;
 }
+message GetInventoriesRequest {
+  repeated string id = 1;
+}
 
 message GetInventoryResponse {
   InventoryItem item = 1;
+}
+
+message GetInventoriesResponse {
+  repeated InventoryItem data = 1;
 }

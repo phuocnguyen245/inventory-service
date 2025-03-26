@@ -12,8 +12,8 @@ COPY . .
 # Build ứng dụng
 RUN go build -o inventory-service ./
 
-# Expose các port cần thiết: HTTP (8080) và gRPC (50053)
-EXPOSE 8080
+# Expose các port cần thiết: HTTP (9090) và gRPC (50053)
+EXPOSE 9090
 EXPOSE 50053
 
 CMD ["./inventory-service"]

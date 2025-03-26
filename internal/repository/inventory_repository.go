@@ -3,6 +3,9 @@ package repository
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/lib/pq"
+	"inventory-service.com/m/internal/grpc/inventorypb"
 )
 
 type InventoryRepository struct {
@@ -31,4 +34,29 @@ func (r *InventoryRepository) GetInventory(itemID string) (int32, error) {
 		return 0, nil
 	}
 	return quantity, err
+}
+
+func (r *InventoryRepository) GetInventories(itemIDs []string) (*inventorypb.GetInventoriesResponse, error) {
+
+	rows, err := r.db.Query("SELECT id, quantity FROM inventories WHERE id = ANY($1)", pq.Array(itemIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []*inventorypb.InventoryItem
+
+	for rows.Next() {
+		r := &inventorypb.InventoryItem{}
+		if err := rows.Scan(&r.Id, &r.Quantity); err != nil {
+			return nil, err
+		}
+		result = append(result, r)
+	}
+
+	response := &inventorypb.GetInventoriesResponse{
+		Data: result,
+	}
+
+	return response, rows.Err()
 }

@@ -68,6 +68,22 @@ func (s *inventoryGRPCServer) GetInventory(ctx context.Context, req *inventorypb
 	}, nil
 }
 
+func (s *inventoryGRPCServer) GetInventories(ctx context.Context, req *inventorypb.GetInventoriesRequest) (*inventorypb.GetInventoriesResponse, error) {
+	ids := req.Id
+
+	if len(ids) == 0 {
+		return &inventorypb.GetInventoriesResponse{Data: []*inventorypb.InventoryItem{}}, nil
+	}
+
+	items, err := s.repo.GetInventories(ids)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
 // StartGRPCServer khởi chạy gRPC server trên cổng cấu hình.
 // Hàm này chạy trong một goroutine và chờ tín hiệu dừng thông qua kênh grpcStop.
 func StartGRPCServer(db *sql.DB, port string, grpcStop chan struct{}) {

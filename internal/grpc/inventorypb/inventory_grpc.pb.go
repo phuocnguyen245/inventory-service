@@ -22,6 +22,7 @@ const (
 	InventoryService_CreateInventory_FullMethodName = "/inventory.InventoryService/CreateInventory"
 	InventoryService_UpdateInventory_FullMethodName = "/inventory.InventoryService/UpdateInventory"
 	InventoryService_GetInventory_FullMethodName    = "/inventory.InventoryService/GetInventory"
+	InventoryService_GetInventories_FullMethodName  = "/inventory.InventoryService/GetInventories"
 )
 
 // InventoryServiceClient is the client API for InventoryService service.
@@ -31,6 +32,7 @@ type InventoryServiceClient interface {
 	CreateInventory(ctx context.Context, in *CreateInventoryRequest, opts ...grpc.CallOption) (*CreateInventoryResponse, error)
 	UpdateInventory(ctx context.Context, in *UpdateInventoryRequest, opts ...grpc.CallOption) (*UpdateInventoryResponse, error)
 	GetInventory(ctx context.Context, in *GetInventoryRequest, opts ...grpc.CallOption) (*GetInventoryResponse, error)
+	GetInventories(ctx context.Context, in *GetInventoriesRequest, opts ...grpc.CallOption) (*GetInventoriesResponse, error)
 }
 
 type inventoryServiceClient struct {
@@ -71,6 +73,16 @@ func (c *inventoryServiceClient) GetInventory(ctx context.Context, in *GetInvent
 	return out, nil
 }
 
+func (c *inventoryServiceClient) GetInventories(ctx context.Context, in *GetInventoriesRequest, opts ...grpc.CallOption) (*GetInventoriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetInventoriesResponse)
+	err := c.cc.Invoke(ctx, InventoryService_GetInventories_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // InventoryServiceServer is the server API for InventoryService service.
 // All implementations must embed UnimplementedInventoryServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type InventoryServiceServer interface {
 	CreateInventory(context.Context, *CreateInventoryRequest) (*CreateInventoryResponse, error)
 	UpdateInventory(context.Context, *UpdateInventoryRequest) (*UpdateInventoryResponse, error)
 	GetInventory(context.Context, *GetInventoryRequest) (*GetInventoryResponse, error)
+	GetInventories(context.Context, *GetInventoriesRequest) (*GetInventoriesResponse, error)
 	mustEmbedUnimplementedInventoryServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedInventoryServiceServer) UpdateInventory(context.Context, *Upd
 }
 func (UnimplementedInventoryServiceServer) GetInventory(context.Context, *GetInventoryRequest) (*GetInventoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetInventory not implemented")
+}
+func (UnimplementedInventoryServiceServer) GetInventories(context.Context, *GetInventoriesRequest) (*GetInventoriesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetInventories not implemented")
 }
 func (UnimplementedInventoryServiceServer) mustEmbedUnimplementedInventoryServiceServer() {}
 func (UnimplementedInventoryServiceServer) testEmbeddedByValue()                          {}
@@ -172,6 +188,24 @@ func _InventoryService_GetInventory_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InventoryService_GetInventories_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetInventoriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InventoryServiceServer).GetInventories(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InventoryService_GetInventories_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InventoryServiceServer).GetInventories(ctx, req.(*GetInventoriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // InventoryService_ServiceDesc is the grpc.ServiceDesc for InventoryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var InventoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetInventory",
 			Handler:    _InventoryService_GetInventory_Handler,
+		},
+		{
+			MethodName: "GetInventories",
+			Handler:    _InventoryService_GetInventories_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

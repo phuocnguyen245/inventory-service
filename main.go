@@ -60,7 +60,7 @@ func main() {
 
 	// 7. Tạo HTTP server với graceful shutdown.
 	httpSrv := &http.Server{
-		Addr:    cfg.Port, // Ví dụ: ":8080"
+		Addr:    cfg.Port, // Ví dụ: "9090"
 		Handler: router,
 	}
 
