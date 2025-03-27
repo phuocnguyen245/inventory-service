@@ -25,3 +25,9 @@ which protoc-gen-go
 which protoc-gen-go-grpc
 
 protoc --go_out=. --go-grpc_out=. inventory.proto
+
+// Migration
+
+migrate -path migrations -database "postgresql://postgres:root@localhost:5432/inventorydb?sslmode=disable" down
+
+migrate -path migrations -database "postgresql://postgres:root@localhost:5432/inventorydb?sslmode=disable" up
